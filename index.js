@@ -39,7 +39,7 @@ app.get("/api/stats", async (req, res) => {
     const stats = await Stat.find().sort({ date: -1 }).limit(10);
     res.json(stats);
   } catch (error) {
-    res.status(500).json({ error: "Failed to fetch stats" });
+    res.status(500).json({ error: "Failed to fetch stats", details: error.message });
   }
 });
 
@@ -50,7 +50,7 @@ app.post("/api/stats", async (req, res) => {
     await newStat.save();
     res.status(201).json(newStat);
   } catch (error) {
-    res.status(500).json({ error: "Failed to save stat" });
+    res.status(500).json({ error: "Failed to save stat", details: error.message });
   }
 });
 
