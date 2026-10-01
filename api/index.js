@@ -36,22 +36,28 @@ const cheerio = require("cheerio");
 // API Routes
 app.get("/api/scrape", async (req, res) => {
   try {
-    // 1. Fetch live gold data (using a public market tracker for Bangladesh)
-    // For demonstration, we scrape a general finance site or mock a live API call.
-    // In production, you'd target BAJUS directly or a financial API.
-    const { data } = await axios.get("https://www.goldprice.org/gold-price-bangladesh.html", {
-      headers: { "User-Agent": "Mozilla/5.0" }
-    });
+    let data = "";
+    try {
+      const response = await axios.get("https://www.goldprice.org/gold-price-bangladesh.html", {
+        headers: { "User-Agent": "Mozilla/5.0" },
+        timeout: 3000 // 3-second timeout
+      });
+      data = response.data;
+    } catch (fetchError) {
+      console.log("Scraping failed, using fallback:", fetchError.message);
+    }
     
     // We'll insert a robust fallback if scraping fails due to anti-bot measures
     let price22k = 116000; 
     let price21k = 110000;
     
     try {
-      const $ = cheerio.load(data);
-      // Example selector (this is highly site-specific and requires tuning)
-      // const parsedPrice = $('#current-gold-price-BDT').text();
-      // price22k = parseInt(parsedPrice.replace(/,/g, ''));
+      if (data) {
+        const $ = cheerio.load(data);
+        // Example selector (this is highly site-specific and requires tuning)
+        // const parsedPrice = $('#current-gold-price-BDT').text();
+        // price22k = parseInt(parsedPrice.replace(/,/g, ''));
+      }
     } catch(e) {
       console.log("Cheerio parsing skipped/failed", e.message);
     }
