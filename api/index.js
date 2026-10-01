@@ -38,9 +38,17 @@ app.get("/api/scrape", async (req, res) => {
   try {
     let data = "";
     try {
-      const response = await axios.get("https://www.goldprice.org/gold-price-bangladesh.html", {
-        headers: { "User-Agent": "Mozilla/5.0" },
-        timeout: 3000 // 3-second timeout
+      const targetUrl = "https://www.goldprice.org/gold-price-bangladesh.html";
+      const scraperApiKey = process.env.SCRAPER_API_KEY;
+      
+      // Route through ScraperAPI if the key exists in Vercel ENV
+      let fetchUrl = targetUrl;
+      if (scraperApiKey) {
+        fetchUrl = `http://api.scraperapi.com/?api_key=${scraperApiKey}&url=${encodeURIComponent(targetUrl)}`;
+      }
+
+      const response = await axios.get(fetchUrl, {
+        timeout: 8000 // 8-second timeout to allow proxy to bypass captchas
       });
       data = response.data;
     } catch (fetchError) {
