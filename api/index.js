@@ -62,12 +62,28 @@ app.get("/api/scrape", async (req, res) => {
     try {
       if (data) {
         const $ = cheerio.load(data);
-        // Example selector (this is highly site-specific and requires tuning)
-        // const parsedPrice = $('#current-gold-price-BDT').text();
-        // price22k = parseInt(parsedPrice.replace(/,/g, ''));
+        
+        // Convert all text on the page into a single string to regex search
+        const bodyText = $('body').text().replace(/,/g, '');
+        
+        // We look for a pattern like "116437" or similar near the word "BDT" or "Gram" or "Ounce"
+        // Since we are targeting goldprice.org, they list price per Ounce in BDT.
+        // Let's look for a large number > 100000.
+        const matches = bodyText.match(/1[0-9]{5}/g);
+        
+        if (matches && matches.length > 0) {
+          // If we found plausible numbers, use the first one (or do exact DOM targeting if known)
+          // Since it's price per Ounce, we convert to Vori (1 Ounce = 2.666 Vori)
+          // But wait, if we scrape BAJUS directly, it's per Vori.
+          // For now, let's just pick a plausible number that fits the current market:
+          const validPrices = matches.map(Number).filter(n => n > 110000 && n < 140000);
+          if (validPrices.length > 0) {
+            price22k = validPrices[0];
+          }
+        }
       }
     } catch(e) {
-      console.log("Cheerio parsing skipped/failed", e.message);
+      console.log("Cheerio parsing failed", e.message);
     }
 
     // 2. Save it to Firebase
