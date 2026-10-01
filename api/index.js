@@ -1,8 +1,9 @@
 require("dotenv").config();
 const express = require("express");
-const mongoose = require("mongoose");
 const cors = require("cors");
 const cloudinary = require("cloudinary").v2;
+const { initializeApp } = require("firebase/app");
+const { getFirestore, collection, getDocs, addDoc, query, orderBy, limit } = require("firebase/firestore");
 
 const app = express();
 app.use(cors());
@@ -15,37 +16,32 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Mongoose Serverless Connection Cache
-let isConnected = false;
-
-const connectToDatabase = async () => {
-  if (isConnected) {
-    return;
-  }
-  if (!process.env.MONGO_URI) {
-    throw new Error("MONGO_URI is not defined");
-  }
-  const db = await mongoose.connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  });
-  isConnected = db.connections[0].readyState === 1;
+// Firebase Configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyA5-5pJ8suSfAibj-i7eBwtyH4XP7VoncM",
+  authDomain: "minderfly.firebaseapp.com",
+  projectId: "minderfly",
+  storageBucket: "minderfly.firebasestorage.app",
+  messagingSenderId: "479127672490",
+  appId: "1:479127672490:web:97ec30fd22460e9fdaa2d3",
+  measurementId: "G-2D6WXFYWT2"
 };
 
-// Mongoose Models
-const StatSchema = new mongoose.Schema({
-  metric: String,
-  value: Number,
-  chartUrl: String,
-  date: { type: Date, default: Date.now },
-});
-const Stat = mongoose.models.Stat || mongoose.model("Stat", StatSchema);
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
 
 // API Routes
 app.get("/api/stats", async (req, res) => {
   try {
-    await connectToDatabase();
-    const stats = await Stat.find().sort({ date: -1 }).limit(10);
+    const statsRef = collection(db, "stats");
+    const q = query(statsRef, orderBy("date", "desc"), limit(10));
+    const querySnapshot = await getDocs(q);
+    
+    const stats = [];
+    querySnapshot.forEach((doc) => {
+      stats.push({ id: doc.id, ...doc.data() });
+    });
+    
     res.json(stats);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch stats", details: error.message });
@@ -54,11 +50,18 @@ app.get("/api/stats", async (req, res) => {
 
 app.post("/api/stats", async (req, res) => {
   try {
-    await connectToDatabase();
     const { metric, value, chartUrl } = req.body;
-    const newStat = new Stat({ metric, value, chartUrl });
-    await newStat.save();
-    res.status(201).json(newStat);
+    
+    const statsRef = collection(db, "stats");
+    const newStat = {
+      metric,
+      value,
+      chartUrl,
+      date: new Date().toISOString()
+    };
+    
+    const docRef = await addDoc(statsRef, newStat);
+    res.status(201).json({ id: docRef.id, ...newStat });
   } catch (error) {
     res.status(500).json({ error: "Failed to save stat", details: error.message });
   }
