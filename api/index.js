@@ -87,6 +87,20 @@ app.get("/api/scrape", async (req, res) => {
   }
 });
 
+app.get("/api/debug-html", async (req, res) => {
+  try {
+    const targetUrl = "https://www.goldprice.org/gold-price-bangladesh.html";
+    const scraperApiKey = process.env.SCRAPER_API_KEY;
+    if (!scraperApiKey) return res.send("No API KEY");
+    const fetchUrl = `http://api.scraperapi.com/?api_key=${scraperApiKey}&url=${encodeURIComponent(targetUrl)}`;
+    const axios = require('axios');
+    const response = await axios.get(fetchUrl, { timeout: 8000 });
+    res.send(response.data);
+  } catch (e) {
+    res.send(e.message);
+  }
+});
+
 app.get("/api/stats", async (req, res) => {
   try {
     const statsRef = collection(db, "stats");
