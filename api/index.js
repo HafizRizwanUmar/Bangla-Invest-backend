@@ -15,14 +15,22 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Database Connection
-mongoose
-  .connect(process.env.MONGO_URI, {
+// Mongoose Serverless Connection Cache
+let isConnected = false;
+
+const connectToDatabase = async () => {
+  if (isConnected) {
+    return;
+  }
+  if (!process.env.MONGO_URI) {
+    throw new Error("MONGO_URI is not defined");
+  }
+  const db = await mongoose.connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
-  })
-  .then(() => console.log("MongoDB Atlas Connected"))
-  .catch((err) => console.log("MongoDB Connection Error: ", err));
+  });
+  isConnected = db.connections[0].readyState === 1;
+};
 
 // Mongoose Models
 const StatSchema = new mongoose.Schema({
@@ -31,11 +39,12 @@ const StatSchema = new mongoose.Schema({
   chartUrl: String,
   date: { type: Date, default: Date.now },
 });
-const Stat = mongoose.model("Stat", StatSchema);
+const Stat = mongoose.models.Stat || mongoose.model("Stat", StatSchema);
 
 // API Routes
 app.get("/api/stats", async (req, res) => {
   try {
+    await connectToDatabase();
     const stats = await Stat.find().sort({ date: -1 }).limit(10);
     res.json(stats);
   } catch (error) {
@@ -45,6 +54,7 @@ app.get("/api/stats", async (req, res) => {
 
 app.post("/api/stats", async (req, res) => {
   try {
+    await connectToDatabase();
     const { metric, value, chartUrl } = req.body;
     const newStat = new Stat({ metric, value, chartUrl });
     await newStat.save();
@@ -54,5 +64,4 @@ app.post("/api/stats", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Backend server running on port ${PORT}`));
+module.exports = app;
